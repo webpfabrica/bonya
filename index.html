@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кликай на Боню</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .click-area {
+            cursor: pointer;
+            margin: 20px auto;
+            position: relative;
+            width: 200px;
+            height: 200px;
+            overflow: hidden;
+            border-radius: 10px;
+            transition: transform 0.1s;
+        }
+        
+        .click-area:active {
+            transform: scale(0.95);
+        }
+        
+        .click-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .counter {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .upgrades {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        .upgrade-btn {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .save-btn {
+            padding: 10px 15px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .reset-btn {
+            padding: 10px 15px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .upgrade-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .save-message {
+            margin-top: 10px;
+            color: #4CAF50;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .save-message.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Кликай на Боню</h1>
+        
+        <div class="click-area" id="clickArea">
+            <!-- Здесь укажите URL вашего изображения -->
+            <img src="Bonya1.3.jpg" alt="Кликните здесь" id="clickImage">
+        </div>
+        
+        <div class="counter">
+            Очки: <span id="score">0</span>
+        </div>
+        
+        <div class="counter">
+            Клики в секунду: <span id="clicksPerSecond">1</span>
+        </div>
+        
+        <div class="counter">
+            Авто-клики: <span id="autoClickCount">0</span> в секунду
+        </div>
+        
+        <div class="upgrades">
+            <button id="upgradeBtn" class="upgrade-btn">Улучшить (стоимость: 10)</button>
+            <button id="autoClickBtn" class="upgrade-btn">Авто-клик (стоимость: 50)</button>
+        </div>
+        
+        <div class="buttons">
+            <button id="saveBtn" class="save-btn">Сохранить игру</button>
+            <button id="resetBtn" class="reset-btn">Сбросить игру</button>
+        </div>
+        
+        <div id="saveMessage" class="save-message">Игра сохранена!</div>
+    </div>
+
+    <script>
+        // Начальные значения
+        let score = 0;
+        let clickPower = 1;
+        let upgradeCost = 10;
+        let autoClickCost = 50;
+        let autoClickers = 0;
+        let autoClickInterval;
+        
+        // Элементы DOM
+        const scoreElement = document.getElementById('score');
+        const clicksPerSecondElement = document.getElementById('clicksPerSecond');
+        const autoClickCountElement = document.getElementById('autoClickCount');
+        const clickArea = document.getElementById('clickArea');
+        const upgradeBtn = document.getElementById('upgradeBtn');
+        const autoClickBtn = document.getElementById('autoClickBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const saveMessage = document.getElementById('saveMessage');
+        
+        // Функция загрузки сохраненной игры
+        function loadGame() {
+            const savedGame = localStorage.getItem('clickerGameSave');
+            if (savedGame) {
+                const gameData = JSON.parse(savedGame);
+                score = gameData.score || 0;
+                clickPower = gameData.clickPower || 1;
+                upgradeCost = gameData.upgradeCost || 10;
+                autoClickCost = gameData.autoClickCost || 50;
+                autoClickers = gameData.autoClickers || 0;
+                
+                updateUI();
+                
+                // Запускаем авто-клики, если они есть
+                if (autoClickers > 0) {
+                    startAutoClickers();
+                }
+            }
+        }
+        
+        // Функция сохранения игры
+        function saveGame() {
+            const gameData = {
+                score: score,
+                clickPower: clickPower,
+                upgradeCost: upgradeCost,
+                autoClickCost: autoClickCost,
+                autoClickers: autoClickers
+            };
+            
+            localStorage.setItem('clickerGameSave', JSON.stringify(gameData));
+            
+            // Показываем сообщение о сохранении
+            saveMessage.classList.add('show');
+            setTimeout(() => {
+                saveMessage.classList.remove('show');
+            }, 2000);
+        }
+        
+        // Функция сброса игры
+        function resetGame() {
+            if (confirm('Вы уверены, что хотите сбросить всю игру?')) {
+                localStorage.removeItem('clickerGameSave');
+                
+                score = 0;
+                clickPower = 1;
+                upgradeCost = 10;
+                autoClickCost = 50;
+                autoClickers = 0;
+                
+                if (autoClickInterval) {
+                    clearInterval(autoClickInterval);
+                    autoClickInterval = null;
+                }
+                
+                updateUI();
+            }
+        }
+        
+        // Функция обновления счета
+        function updateScore(amount) {
+            score += amount;
+            updateUI();
+        }
+        
+        // Функция обновления UI
+        function updateUI() {
+            scoreElement.textContent = score;
+            clicksPerSecondElement.textContent = clickPower;
+            autoClickCountElement.textContent = autoClickers;
+            
+            upgradeBtn.disabled = score < upgradeCost;
+            upgradeBtn.textContent = `Улучшить (стоимость: ${upgradeCost})`;
+            
+            autoClickBtn.disabled = score < autoClickCost;
+            autoClickBtn.textContent = `Авто-клик (стоимость: ${autoClickCost})`;
+        }
+        
+        // Функция для запуска авто-кликеров
+        function startAutoClickers() {
+            if (autoClickInterval) {
+                clearInterval(autoClickInterval);
+            }
+            
+            autoClickInterval = setInterval(function() {
+                updateScore(autoClickers);
+            }, 1000);
+        }
+        
+        // Обработчик клика по области
+        clickArea.addEventListener('click', function() {
+            updateScore(clickPower);
+        });
+        
+        // Обработчик улучшения
+        upgradeBtn.addEventListener('click', function() {
+            if (score >= upgradeCost) {
+                score -= upgradeCost;
+                clickPower += 1;
+                upgradeCost = Math.floor(upgradeCost * 1.5);
+                updateUI();
+            }
+        });
+        
+        // Обработчик авто-клика
+        autoClickBtn.addEventListener('click', function() {
+            if (score >= autoClickCost) {
+                score -= autoClickCost;
+                autoClickers += 1;
+                autoClickCost = Math.floor(autoClickCost * 1.8);
+                updateUI();
+                
+                // Запускаем авто-клик
+                startAutoClickers();
+            }
+        });
+        
+        // Обработчик сохранения
+        saveBtn.addEventListener('click', saveGame);
+        
+        // Обработчик сброса
+        resetBtn.addEventListener('click', resetGame);
+        
+        // Автосохранение каждую минуту
+        setInterval(saveGame, 60000);
+        
+        // Загружаем сохраненную игру при запуске
+        loadGame();
+    </script>
+</body>
+</html>
